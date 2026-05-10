@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap');
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+
+  --color-game-primary: #5E2BED;
+  --color-game-secondary: #8B5CF6;
+  --color-game-accent: #FFD32A;
+  --color-game-bg: #F5F3FF;
+  --color-game-surface: #FFFFFF;
+  --color-game-text: #1E1B4B;
+  --color-game-muted: #6B7280;
+  --color-game-danger: #EF4444;
+  --color-game-success: #10B981;
+  
+  --shadow-game: 0 10px 0 0 rgba(94, 43, 237, 0.2);
+  --shadow-button: 0 6px 0 0 #4C1D95;
+  --shadow-button-success: 0 6px 0 0 #065F46;
+  --shadow-button-danger: 0 6px 0 0 #991B1B;
+}
+
+@layer base {
+  body {
+    @apply bg-game-bg text-game-text font-sans overflow-hidden;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-game-secondary/30 rounded-full hover:bg-game-secondary/50;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+}
