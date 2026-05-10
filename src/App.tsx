@@ -19,7 +19,9 @@ import {
   Clock,
   LayoutGrid,
   Zap,
-  Smile
+  Smile,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { EXPRESSIONS, GameState, ExpressionTemplate, Group, Difficulty } from './constants.ts';
@@ -41,6 +43,17 @@ const EMOJI_DATA = [
 
 const EMOJIS = EMOJI_DATA.map(e => e.char);
 
+const SOUNDS = {
+  TICK: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3', // Soft pop instead of harsh tick
+  DRAW: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3', // Soft pop
+  DRAW_DONE: 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3', // Success bell
+  STOP: 'https://assets.mixkit.co/active_storage/sfx/2569/2569-preview.mp3', // Soft error instead of buzzer
+  ACTION: 'https://assets.mixkit.co/active_storage/sfx/2562/2562-preview.mp3', // Bubble pop
+  WIN: 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3', // Winning chimes
+  START: 'https://assets.mixkit.co/active_storage/sfx/221/221-preview.mp3', // Soft beep instead of long chime
+  PENALTY: 'https://assets.mixkit.co/active_storage/sfx/2569/2569-preview.mp3' // Soft error
+};
+
 const AVATAR_COLORS = [
   '#FF4757', '#2ED573', '#70A1FF', '#ECCC68', '#FF7F50', '#1E90FF', 
   '#A29BFE', '#FD79A8', '#FAB1A0', '#00B894', '#0984E3', '#6C5CE7'
@@ -53,6 +66,7 @@ export default function App() {
   const [newGroupName, setNewGroupName] = useState(EMOJI_DATA[0].name);
   const [selectedEmoji, setSelectedEmoji] = useState(EMOJIS[0]);
   const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   
   // Config State
   const [numRounds, setNumRounds] = useState(5);
@@ -75,16 +89,31 @@ export default function App() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const playSound = (soundUrl: string, volume = 0.5) => {
+    if (!soundEnabled) return;
+    const audio = new Audio(soundUrl);
+    audio.volume = volume;
+    audio.play().catch(e => console.log('Audio play blocked:', e));
+  };
+
+  useEffect(() => {
+    if (gameState === GameState.PLAYING && timer > 0 && timer <= 5) {
+      playSound(SOUNDS.TICK, 0.4);
+    }
+  }, [timer, gameState]);
+
   // Management Logic
   const addGroup = () => {
     // Check if emoji is already taken
     const isEmojiTaken = groups.some(g => g.avatar === selectedEmoji);
     if (isEmojiTaken) {
+      playSound(SOUNDS.PENALTY);
       alert('Este ícone já está sendo usado por outro grupo!');
       return;
     }
 
     if (newGroupName.trim() && groups.length < 15) {
+      playSound(SOUNDS.ACTION);
       setGroups([...groups, { 
         id: Date.now().toString(), 
         name: newGroupName.trim(), 
@@ -108,6 +137,7 @@ export default function App() {
     const isEmojiTaken = groups.some(g => g.avatar === emojiChar);
     if (isEmojiTaken) return;
 
+    playSound(SOUNDS.ACTION);
     const emojiInfo = EMOJI_DATA.find(e => e.char === emojiChar);
     setSelectedEmoji(emojiChar);
     
@@ -119,6 +149,7 @@ export default function App() {
   };
 
   const removeGroup = (id: string) => {
+    playSound(SOUNDS.ACTION);
     setGroups(groups.filter(g => g.id !== id));
   };
 
@@ -147,10 +178,12 @@ export default function App() {
 
   const startNewGame = () => {
     if (groups.length === 0) {
+      playSound(SOUNDS.PENALTY);
       alert('Adicione pelo menos um grupo!');
       return;
     }
     
+    playSound(SOUNDS.START);
     setIsProcessing(true);
     
     // Simulate a brief calculation/shuffling time
@@ -184,6 +217,7 @@ export default function App() {
   };
 
   const prepareRound = () => {
+    playSound(SOUNDS.START);
     setTimer(timePerRound);
     setGameState(GameState.PLAYING);
     setRoundPoints({});
@@ -200,6 +234,7 @@ export default function App() {
 
     let counter = 0;
     const interval = setInterval(() => {
+      playSound(SOUNDS.DRAW, 0.4);
       setVariables({
         x: Math.floor(Math.random() * 10) + 1,
         y: Math.floor(Math.random() * 10) + 1
@@ -209,6 +244,7 @@ export default function App() {
         clearInterval(interval);
         setVariables(finalVars);
         setIsDrawing(false);
+        playSound(SOUNDS.DRAW_DONE, 0.6);
         startTimer();
       }
     }, 80);
@@ -228,6 +264,7 @@ export default function App() {
   };
 
   const handleStop = () => {
+    playSound(SOUNDS.STOP);
     if (timerRef.current) clearInterval(timerRef.current);
     setShowStopOverlay(true);
     setTimeout(() => {
@@ -239,6 +276,8 @@ export default function App() {
   const updateRoundPoints = (groupId: string, delta: number) => {
     if (penalizedGroups[groupId]) return; // locked if penalized
     
+    playSound(delta > 0 ? SOUNDS.DRAW_DONE : SOUNDS.ACTION, 0.5);
+
     const current = roundPoints[groupId] || 0;
     const maxPoints = numExpressions * 5;
     setRoundPoints({ 
@@ -250,6 +289,7 @@ export default function App() {
   const handlePenalty = (groupId: string) => {
     if (penalizedGroups[groupId]) return;
 
+    playSound(SOUNDS.PENALTY);
     setRoundPoints(prev => ({
       ...prev,
       [groupId]: (prev[groupId] || 0) - 10
@@ -261,6 +301,7 @@ export default function App() {
   };
 
   const submitRoundScores = () => {
+    playSound(SOUNDS.ACTION);
     setIsProcessing(true);
     
     // Simulate finalizing scores
@@ -276,6 +317,7 @@ export default function App() {
   };
 
   const nextAction = () => {
+    playSound(SOUNDS.ACTION);
     setIsProcessing(true);
     
     setTimeout(() => {
@@ -283,6 +325,7 @@ export default function App() {
         setCurrentRound(prev => prev + 1);
         prepareRound();
       } else {
+        playSound(SOUNDS.WIN);
         setGameState(GameState.RESULTS);
         confetti({
           particleCount: 150,
@@ -377,6 +420,15 @@ export default function App() {
                   >
                     X-QUADRADO
                   </motion.h1>
+                  <button 
+                    onClick={() => {
+                      playSound(SOUNDS.ACTION);
+                      setSoundEnabled(!soundEnabled);
+                    }}
+                    className="p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all border border-white/5"
+                  >
+                    {soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+                  </button>
                 </div>
 
                 <div className="px-4 md:px-8 pt-0 pb-6 grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-4 md:gap-6 flex-1 overflow-y-auto">
@@ -509,6 +561,7 @@ export default function App() {
                         </label>
                         <div className="flex items-center bg-game-bg rounded-2xl p-1 px-3">
                           <input type="number" min="1" max="10" value={numRounds} onChange={e => {
+                            playSound(SOUNDS.ACTION);
                             setNumRounds(Math.min(10, Math.max(1, Number(e.target.value))));
                           }} className="w-full text-lg font-black bg-transparent focus:outline-none" />
                         </div>
@@ -519,6 +572,7 @@ export default function App() {
                         </label>
                         <div className="flex items-center bg-game-bg rounded-2xl p-1 px-3">
                            <input type="number" min="10" max="300" value={timePerRound} onChange={e => {
+                             playSound(SOUNDS.ACTION);
                              setTimePerRound(Math.max(10, Number(e.target.value)));
                            }} className="w-full text-lg font-black bg-transparent focus:outline-none" />
                         </div>
@@ -529,6 +583,7 @@ export default function App() {
                       <label className="text-[10px] font-black uppercase text-game-muted">Expressões por Rodada (Máx 6)</label>
                       <div className="flex items-center bg-game-bg rounded-2xl p-3 px-4">
                          <input type="number" min="1" max="6" value={numExpressions} onChange={e => {
+                           playSound(SOUNDS.ACTION);
                            setNumExpressions(Math.min(6, Math.max(1, Number(e.target.value))));
                          }} className="w-full text-lg font-black bg-transparent focus:outline-none" />
                       </div>
@@ -538,6 +593,7 @@ export default function App() {
                       <label className="text-[10px] font-black uppercase text-game-muted">Complexidade</label>
                       <button 
                         onClick={() => {
+                          playSound(SOUNDS.ACTION);
                           setUseTwoVariables(!useTwoVariables);
                         }}
                         className={`w-full p-4 rounded-3xl font-black text-sm flex items-center justify-between transition-all ${useTwoVariables ? 'bg-game-primary text-white shadow-button' : 'bg-game-bg text-game-text'}`}
@@ -554,6 +610,7 @@ export default function App() {
                           <button
                             key={diff}
                             onClick={() => {
+                              playSound(SOUNDS.ACTION);
                               setSelectedDifficulty(diff);
                             }}
                             className={`py-2 rounded-xl text-[10px] font-black transition-all ${
@@ -1045,7 +1102,12 @@ export default function App() {
                     )}
                   </div>
 
-                  <button onClick={() => setGameState(GameState.LOBBY)} className="w-full max-w-sm py-4 bg-white text-game-primary rounded-3xl font-black text-xl shadow-lg border-2 border-game-bg flex items-center justify-center gap-3 hover:scale-[1.02] transition-all uppercase italic mt-2 shrink-0">
+                  <button 
+                    onClick={() => {
+                      playSound(SOUNDS.ACTION);
+                      setGameState(GameState.LOBBY);
+                    }} 
+                    className="w-full max-w-sm py-4 bg-white text-game-primary rounded-3xl font-black text-xl shadow-lg border-2 border-game-bg flex items-center justify-center gap-3 hover:scale-[1.02] transition-all uppercase italic mt-2 shrink-0">
                     <RotateCcw /> NOVO JOGO
                   </button>
                 </motion.div>
